@@ -1,0 +1,146 @@
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+v1 = int(os.environ.get("V7", "60"))
+v2 = 90
+v3 = 512
+v4 = 50
+v5 = 6000
+v6 = 1000000
+v7 = "256m"
+v8 = Path(__file__).resolve().parent
+v9 = v8 / "lua_host.py"
+v10 = {
+    "python": shutil.which("python3") or sys.executable,
+    "node": shutil.which("node"),
+    "java": shutil.which("java"),
+    "lune": shutil.which("lune"),
+}
+v11 = ""
+v12 = ("python", "node", "java", "lune", "lua")
+v13 = {"python": "main.py", "node": "main.js", "java": "main.java", "lune": "main.luau", "lua": "main.lua"}
+
+
+def v14(v19):
+    if len(v19) <= v5:
+        return v19
+    v20 = v5 * 2 // 3
+    return v19[:v20] + f"\n...[cat {len(v19) - v5} ky tu]...\n" + v19[-(v5 - v20):]
+
+
+def v15(v21):
+    if v21 == "lua":
+        if not v11:
+            return None
+        return [sys.executable, str(v9), v13[v21]]
+    v22 = v10.get(v21)
+    if not v22:
+        return None
+    if v21 == "python":
+        return [v22, "-B", v13[v21]]
+    if v21 == "node":
+        return [v22, v13[v21]]
+    if v21 == "java":
+        return [v22, f"-Xmx{v7}", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", v13[v21]]
+    if v21 == "lune":
+        return [v22, "run", v13[v21]]
+    return None
+
+
+def v16(v23):
+    return v15(v23) is not None
+
+
+def v17(v24, v25, v26):
+    try:
+        while True:
+            v27 = v24.read(65536)
+            if not v27:
+                break
+            if len(v25) < v26:
+                v25 += v27[: v26 - len(v25)]
+    except Exception:
+        pass
+
+
+def v18(v28, v29, v30=""):
+    if v28 not in v12:
+        return {"ok": False, "error": "ngon ngu khong ho tro"}
+    v31 = v15(v28)
+    if v31 is None:
+        return {"ok": False, "error": f"{v28} chua san sang, xem /health"}
+    v32 = Path(tempfile.mkdtemp(prefix="run_"))
+    try:
+        os.chmod(v32, 0o700)
+        (v32 / v13[v28]).write_text(v29, encoding="utf-8")
+        v33 = [str(Path(v34).parent) for v34 in v10.values() if v34]
+        v35 = {
+            "PATH": ":".join(dict.fromkeys(v33 + ["/usr/local/bin", "/usr/bin", "/bin"])),
+            "HOME": str(v32),
+            "TMPDIR": str(v32),
+            "LANG": "C.UTF-8",
+            "PYTHONUNBUFFERED": "1",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "TERM": "dumb",
+        }
+        if v11:
+            v35["PYTHONPATH"] = v11
+        v36 = v10.get("java")
+        if v36:
+            v35["JAVA_HOME"] = str(Path(v36).resolve().parent.parent)
+        v37 = (
+            "umask 077; "
+            f"ulimit -t {v2} 2>/dev/null; "
+            f"ulimit -u {v3} 2>/dev/null; "
+            f"ulimit -f {v4 * 2048} 2>/dev/null; "
+            f'exec timeout -k 2 {v1} "$@"'
+        )
+        v38 = ["env", "-i", *[f"{v39}={v40}" for v39, v40 in v35.items()], "sh", "-c", v37, "sandbox", *v31]
+        v41 = time.perf_counter()
+        v42 = subprocess.Popen(
+            v38, cwd=str(v32), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        v43 = bytearray()
+        v44 = threading.Thread(target=v17, args=(v42.stdout, v43, v6), daemon=True)
+        v44.start()
+
+        def v45():
+            try:
+                v42.stdin.write((v30 or "")[:100000].encode())
+                v42.stdin.close()
+            except Exception:
+                pass
+
+        threading.Thread(target=v45, daemon=True).start()
+        v46 = False
+        try:
+            v42.wait(timeout=v1 + 8)
+        except subprocess.TimeoutExpired:
+            v46 = True
+        try:
+            os.killpg(v42.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        v42.wait()
+        v44.join(timeout=2)
+        v47 = v42.returncode
+        if v47 == 124:
+            v46 = True
+        v48 = bytes(v43).decode("utf-8", "replace").replace(str(v32), "~")
+        return {
+            "ok": v47 == 0 and not v46,
+            "exit_code": v47,
+            "timed_out": v46,
+            "seconds": round(time.perf_counter() - v41, 2),
+            "output": v14(v48) if v48 else ("(het gio, khong co output)" if v46 else "(khong co output)"),
+        }
+    finally:
+        shutil.rmtree(v32, ignore_errors=True)

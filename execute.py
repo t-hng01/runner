@@ -8,8 +8,8 @@ import threading
 import time
 from pathlib import Path
 
-v1 = int(os.environ.get("V7", "60"))
-v2 = 90
+v1 = int(os.environ.get("V7", "360"))
+v2 = 420
 v3 = 512
 v4 = 50
 v5 = 6000
@@ -25,6 +25,7 @@ v10 = {
 }
 v11 = ""
 v12 = ("python", "node", "java", "lune", "lua")
+v50 = 65534
 v13 = {"python": "main.py", "node": "main.js", "java": "main.java", "lune": "main.luau", "lua": "main.lua"}
 
 
@@ -48,7 +49,7 @@ def v15(v21):
     if v21 == "node":
         return [v22, v13[v21]]
     if v21 == "java":
-        return [v22, f"-Xmx{v7}", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", v13[v21]]
+        return [v22, f"-Xmx{v7}", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-cp", "/opt/javalibs/*", v13[v21]]
     if v21 == "lune":
         return [v22, "run", v13[v21]]
     return None
@@ -79,7 +80,13 @@ def v18(v28, v29, v30=""):
     v32 = Path(tempfile.mkdtemp(prefix="run_"))
     try:
         os.chmod(v32, 0o700)
+        v51 = os.geteuid() == 0
+        if v51:
+            os.chown(v32, v50, v50)
         (v32 / v13[v28]).write_text(v29, encoding="utf-8")
+        (v32 / ".luaurc").write_text('{"languageMode":"nonstrict","aliases":{"libs":"/opt/lualibs"}}')
+        if os.geteuid() == 0:
+            os.chown(v32 / v13[v28], v50, v50)
         v33 = [str(Path(v34).parent) for v34 in v10.values() if v34]
         v35 = {
             "PATH": ":".join(dict.fromkeys(v33 + ["/usr/local/bin", "/usr/bin", "/bin"])),
@@ -89,6 +96,7 @@ def v18(v28, v29, v30=""):
             "PYTHONUNBUFFERED": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
             "TERM": "dumb",
+            "NODE_PATH": "/opt/nodelibs/node_modules",
         }
         if v11:
             v35["PYTHONPATH"] = v11
@@ -107,6 +115,7 @@ def v18(v28, v29, v30=""):
         v42 = subprocess.Popen(
             v38, cwd=str(v32), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             start_new_session=True,
+            **({"user": v50, "group": v50, "extra_groups": []} if v51 else {}),
         )
         v43 = bytearray()
         v44 = threading.Thread(target=v17, args=(v42.stdout, v43, v6), daemon=True)

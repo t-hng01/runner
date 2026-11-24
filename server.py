@@ -77,6 +77,6 @@ if __name__ == "__main__":
     installer.v13(v4)
     try:
         from waitress import serve
-        serve(v8, host="0.0.0.0", port=v2, threads=8)
+        serve(v8, host="0.0.0.0", port=v2, threads=8, channel_timeout=420, cleanup_interval=30)
     except ImportError:
         v8.run(host="0.0.0.0", port=v2, threaded=True)

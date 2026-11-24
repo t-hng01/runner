@@ -73,6 +73,7 @@ def v9(v28, v29, v30):
     else:
         (v29 / "bin").mkdir(exist_ok=True)
         shutil.move(str(v28), v29 / "bin" / v5[v30])
+    subprocess.run(["chmod", "-R", "a+rX", str(v29)], check=False)
     v35 = v7(v30)
     if v35:
         os.chmod(v35, os.stat(v35).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)

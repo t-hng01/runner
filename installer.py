@@ -138,6 +138,9 @@ def v13(v43):
                 v10(v45)
         if "lua" in v43:
             v12()
+        for v47 in ("typescript", "c", "cpp", "go", "bash", "php"):
+            if v47 in v43:
+                v6[v47] = "ready" if execute.v10.get(v47) else "failed: chua cai"
         print("runner:", v6, flush=True)
 
     for v46 in execute.v12:

@@ -12,7 +12,7 @@ import installer
 v1 = os.environ.get("V1", "")
 v2 = int(os.environ.get("PORT", "8080"))
 v3 = int(os.environ.get("V8", "60"))
-v4 = {v15.strip() for v15 in os.environ.get("V2", "python,node,java,lune,lua").split(",") if v15.strip()}
+v4 = {v15.strip() for v15 in os.environ.get("V2", "python,node,java,lune,lua,typescript,c,cpp,go,bash,php").split(",") if v15.strip()}
 v5 = threading.BoundedSemaphore(int(os.environ.get("V9", "3")))
 v6 = deque()
 v7 = threading.Lock()

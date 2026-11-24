@@ -1,5 +1,7 @@
 FROM node:20-slim AS nodesrc
 
+FROM golang:1.22-bookworm AS gosrc
+
 FROM python:3.12-slim AS libs
 RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY fetch_lune.sh fetch_java.sh lune-libs.txt java-libs.txt /libs/
@@ -7,10 +9,17 @@ RUN sh /libs/fetch_lune.sh
 RUN sh /libs/fetch_java.sh
 
 FROM python:3.12-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      gcc g++ libc6-dev make php-cli curl wget git jq unzip zip xz-utils bzip2 file ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=nodesrc /usr/local/bin/node /usr/local/bin/node
 COPY --from=nodesrc /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=gosrc /usr/local/go /usr/local/go
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
- && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+ && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+ && ln -sf /usr/local/go/bin/go /usr/local/bin/go \
+ && ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+RUN npm install -g tsx || echo "SKIP tsx"
 COPY --from=libs /opt/lualibs /opt/lualibs
 COPY --from=libs /opt/javalibs /opt/javalibs
 WORKDIR /app

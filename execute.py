@@ -22,11 +22,18 @@ v10 = {
     "node": shutil.which("node"),
     "java": shutil.which("java"),
     "lune": shutil.which("lune"),
+    "typescript": shutil.which("tsx"),
+    "c": shutil.which("gcc"),
+    "cpp": shutil.which("g++"),
+    "go": shutil.which("go"),
+    "bash": shutil.which("bash"),
+    "php": shutil.which("php"),
 }
 v11 = ""
-v12 = ("python", "node", "java", "lune", "lua")
+v12 = ("python", "node", "java", "lune", "lua", "typescript", "c", "cpp", "go", "bash", "php")
 v50 = 65534
-v13 = {"python": "main.py", "node": "main.js", "java": "main.java", "lune": "main.luau", "lua": "main.lua"}
+v13 = {"python": "main.py", "node": "main.js", "java": "main.java", "lune": "main.luau", "lua": "main.lua",
+       "typescript": "main.ts", "c": "main.c", "cpp": "main.cpp", "go": "main.go", "bash": "main.sh", "php": "main.php"}
 
 
 def v14(v19):
@@ -52,6 +59,18 @@ def v15(v21):
         return [v22, f"-Xmx{v7}", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-cp", "/opt/javalibs/*", v13[v21]]
     if v21 == "lune":
         return [v22, "run", v13[v21]]
+    if v21 == "typescript":
+        return [v22, v13[v21]]
+    if v21 == "c":
+        return ["sh", "-c", f"{v22} -O2 -o main main.c -lm && ./main"]
+    if v21 == "cpp":
+        return ["sh", "-c", f"{v22} -O2 -std=c++17 -o main main.cpp -lm && ./main"]
+    if v21 == "go":
+        return [v22, "run", v13[v21]]
+    if v21 == "bash":
+        return [v22, v13[v21]]
+    if v21 == "php":
+        return [v22, v13[v21]]
     return None
 
 
@@ -96,6 +115,12 @@ def v18(v28, v29, v30=""):
             "PYTHONUNBUFFERED": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
             "TERM": "dumb",
+            "GOROOT": "/usr/local/go",
+            "GOCACHE": str(v32 / ".gocache"),
+            "GOPATH": str(v32 / "go"),
+            "GOTOOLCHAIN": "local",
+            "GOFLAGS": "-buildvcs=false",
+            "CGO_ENABLED": "0",
             "NODE_PATH": "/opt/nodelibs/node_modules",
         }
         if v11:

@@ -18,14 +18,17 @@ v3 = 600 * 1024 * 1024
 v4 = {
     "python": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/"
               "cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-install_only.tar.gz",
-    "node": "https://nodejs.org/dist/v20.18.1/node-v20.18.1-linux-x64.tar.gz",
+    "node": "https://nodejs.org/dist/v22.12.0/node-v22.12.0-linux-x64.tar.gz",
+    "go": "https://go.dev/dl/go1.22.10.linux-amd64.tar.gz",
+    "php": [f"https://dl.static-php.dev/static-php-cli/common/php-{x}-cli-linux-x86_64.tar.gz"
+            for x in ("8.3.14", "8.3.13", "8.3.12", "8.3.11", "8.3.10", "8.3.9", "8.3.8", "8.2.26", "8.2.24", "8.2.23")],
     "java": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/"
             "OpenJDK21U-jdk_x64_linux_hotspot_21.0.5_11.tar.gz",
     "lune": "https://github.com/lune-org/lune/releases/download/v0.10.5/lune-0.10.5-linux-x86_64.zip",
 }
-v5 = {"python": "python3", "node": "node", "java": "java", "lune": "lune"}
+v5 = {"python": "python3", "node": "node", "java": "java", "lune": "lune", "go": "go", "php": "php"}
 v6 = {}
-v14 = {"python": "V3", "node": "V4", "java": "V5", "lune": "V6"}
+v14 = {"python": "V3", "node": "V4", "java": "V5", "lune": "V6", "go": "V10", "php": "V11"}
 
 
 def v7(v15):
@@ -89,15 +92,26 @@ def v10(v36):
             return
         if not v38:
             v39 = v37 or (v4.get(v36) if platform.machine() in ("x86_64", "AMD64") else "")
-            if not v39:
+            v39 = v39 if isinstance(v39, list) else [v39]
+            if not v39[0]:
                 v6[v36] = f"failed: dat {v14[v36]} (khong co link mac dinh cho {platform.machine()})"
                 return
-            if not v39.startswith("https://"):
+            if not all(v48.startswith("https://") for v48 in v39):
                 v6[v36] = "failed: link phai la https"
                 return
             v2.mkdir(exist_ok=True)
             v40 = v2 / f"{v36}.download"
-            v8(v39, v40)
+            v49 = None
+            for v48 in v39:
+                try:
+                    v8(v48, v40)
+                    v49 = None
+                    break
+                except Exception as v50:
+                    v49 = v50
+                    v40.unlink(missing_ok=True)
+            if v49 is not None:
+                raise v49
             v9(v40, v2 / v36, v36)
             v40.unlink(missing_ok=True)
             v38 = v7(v36)
@@ -133,14 +147,16 @@ def v12():
 
 def v13(v43):
     def v44():
-        for v45 in ("python", "node", "lune", "java"):
+        for v45 in ("python", "node", "lune", "java", "go", "php"):
             if v45 in v43:
                 v10(v45)
         if "lua" in v43:
             v12()
-        for v47 in ("typescript", "c", "cpp", "go", "bash", "php"):
+        for v47 in ("c", "cpp", "bash"):
             if v47 in v43:
                 v6[v47] = "ready" if execute.v10.get(v47) else "failed: chua cai"
+        if "typescript" in v43:
+            v6["typescript"] = "ready" if execute.v87() else "failed: can tsx hoac node>=22.6"
         print("runner:", v6, flush=True)
 
     for v46 in execute.v12:

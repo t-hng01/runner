@@ -1,5 +1,7 @@
+import base64
 import os
 import shutil
+import stat
 import signal
 import subprocess
 import sys
@@ -32,6 +34,9 @@ v10 = {
 v11 = ""
 v12 = ("python", "node", "java", "lune", "lua", "typescript", "c", "cpp", "go", "bash", "php")
 v50 = 65534
+v60 = 5 * 1024 * 1024
+v61 = 8 * 1024 * 1024
+v62 = 10
 v13 = {"python": "main.py", "node": "main.js", "java": "main.java", "lune": "main.luau", "lua": "main.lua",
        "typescript": "main.ts", "c": "main.c", "cpp": "main.cpp", "go": "main.go", "bash": "main.sh", "php": "main.php"}
 
@@ -48,6 +53,14 @@ def v15(v21):
         if not v11:
             return None
         return [sys.executable, str(v9), v13[v21]]
+    if v21 == "typescript":
+        v81 = v10.get("typescript")
+        if v81:
+            return [v81, v13[v21]]
+        v82 = v10.get("node")
+        if v82 and v87():
+            return [v82, "--no-warnings", "--experimental-strip-types", v13[v21]]
+        return None
     v22 = v10.get(v21)
     if not v22:
         return None
@@ -59,8 +72,6 @@ def v15(v21):
         return [v22, f"-Xmx{v7}", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-cp", "/opt/javalibs/*", v13[v21]]
     if v21 == "lune":
         return [v22, "run", v13[v21]]
-    if v21 == "typescript":
-        return [v22, v13[v21]]
     if v21 == "c":
         return ["sh", "-c", f"{v22} -O2 -o main main.c -lm && ./main"]
     if v21 == "cpp":
@@ -72,6 +83,58 @@ def v15(v21):
     if v21 == "php":
         return [v22, v13[v21]]
     return None
+
+
+def v63(v64, v65):
+    v66 = []
+    v67 = 0
+    for v68, v69, v70 in os.walk(v64):
+        v69[:] = [v71 for v71 in v69 if not v71.startswith(".") and v71 not in ("node_modules", "__pycache__")]
+        for v72 in sorted(v70):
+            if v72.startswith(".") or len(v66) >= v62:
+                continue
+            v73 = os.path.join(v68, v72)
+            v74 = os.path.relpath(v73, v64)
+            if v74 in v65:
+                continue
+            try:
+                v75 = os.open(v73, os.O_RDONLY | os.O_NOFOLLOW)
+            except OSError:
+                continue
+            try:
+                v76 = os.fstat(v75)
+                if not stat.S_ISREG(v76.st_mode) or v76.st_nlink > 1 or v76.st_size > v60 or v67 + v76.st_size > v61:
+                    continue
+                if os.geteuid() == 0 and v76.st_uid != v50:
+                    continue
+                v77 = b""
+                while len(v77) < v76.st_size:
+                    v78 = os.read(v75, 1 << 20)
+                    if not v78:
+                        break
+                    v77 += v78
+            except OSError:
+                continue
+            finally:
+                os.close(v75)
+            v67 += len(v77)
+            v66.append({"path": v74.replace(os.sep, "/"), "b64": base64.b64encode(v77).decode()})
+    return v66
+
+
+def v87():
+    v83 = v10.get("typescript")
+    if v83:
+        return True
+    v84 = v10.get("node")
+    if not v84:
+        return False
+    try:
+        v85 = subprocess.run([v84, "--version"], capture_output=True, text=True, timeout=10).stdout.strip().lstrip("v")
+        v86 = [int(x) for x in v85.split(".")[:2]]
+        return v86 >= [22, 6]
+    except Exception:
+        return False
 
 
 def v16(v23):
@@ -115,9 +178,9 @@ def v18(v28, v29, v30=""):
             "PYTHONUNBUFFERED": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
             "TERM": "dumb",
-            "GOROOT": "/usr/local/go",
+            "GOROOT": str(Path(v10["go"]).resolve().parent.parent) if v10.get("go") else "/usr/local/go",
             "GOCACHE": str(v32 / ".gocache"),
-            "GOPATH": str(v32 / "go"),
+            "GOPATH": str(v32 / ".gopath"),
             "GOTOOLCHAIN": "local",
             "GOFLAGS": "-buildvcs=false",
             "CGO_ENABLED": "0",
@@ -165,16 +228,20 @@ def v18(v28, v29, v30=""):
             pass
         v42.wait()
         v44.join(timeout=2)
+        v79 = v63(v32, {v13[v28], "main", ".luaurc"})
         v47 = v42.returncode
         if v47 == 124:
             v46 = True
         v48 = bytes(v43).decode("utf-8", "replace").replace(str(v32), "~")
-        return {
+        v80 = {
             "ok": v47 == 0 and not v46,
             "exit_code": v47,
             "timed_out": v46,
             "seconds": round(time.perf_counter() - v41, 2),
             "output": v14(v48) if v48 else ("(het gio, khong co output)" if v46 else "(khong co output)"),
         }
+        if v79:
+            v80["files"] = v79
+        return v80
     finally:
         shutil.rmtree(v32, ignore_errors=True)

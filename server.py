@@ -17,7 +17,7 @@ v5 = threading.BoundedSemaphore(int(os.environ.get("V9", "3")))
 v6 = deque()
 v7 = threading.Lock()
 v8 = Flask(__name__)
-v8.config["MAX_CONTENT_LENGTH"] = 400000
+v8.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 
 @v8.get("/")
@@ -49,6 +49,8 @@ def v11(v17):
             return jsonify({"ok": False, "error": f"rate limited ({v3}/phut)"}), 429
         v18 = request.get_json(silent=True) or {}
         v19 = v18.get("code")
+        if isinstance(v19, str) and len(v19) > 400000:
+            return jsonify({"ok": False, "error": "code qua lon"}), 413
         if not isinstance(v19, str) or not v19.strip():
             return jsonify({"ok": False, "error": "thieu code"}), 400
         if not v5.acquire(timeout=30):
@@ -68,7 +70,7 @@ for v14 in execute.v12:
 
 @v8.errorhandler(413)
 def v13(v20):
-    return jsonify({"ok": False, "error": "code qua lon"}), 413
+    return jsonify({"ok": False, "error": "du lieu qua lon"}), 413
 
 
 if __name__ == "__main__":

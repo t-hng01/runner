@@ -217,8 +217,14 @@ def v18(v28, v29, v30="", v102=None):
             "CGO_ENABLED": "0",
             "NODE_PATH": "/opt/nodelibs/node_modules",
         }
-        if v11:
-            v35["PYTHONPATH"] = v11
+        v104 = v32 / ".pylibs"
+        v104.mkdir(exist_ok=True)
+        if os.geteuid() == 0:
+            os.chown(v104, v50, v50)
+        v35["PIP_TARGET"] = str(v104)
+        v35["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+        v35["PIP_NO_WARN_SCRIPT_LOCATION"] = "0"
+        v35["PYTHONPATH"] = f"{v104}:{v11}" if v11 else str(v104)
         v36 = v10.get("java")
         if v36:
             v35["JAVA_HOME"] = str(Path(v36).resolve().parent.parent)

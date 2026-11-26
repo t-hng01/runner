@@ -54,7 +54,7 @@ def v11(v17):
         if not v5.acquire(timeout=30):
             return jsonify({"ok": False, "error": "runner ban, thu lai"}), 429
         try:
-            return jsonify(execute.v18(v17, v19, str(v18.get("stdin", ""))))
+            return jsonify(execute.v18(v17, v19, str(v18.get("stdin", "")), v18.get("files")))
         finally:
             v5.release()
 

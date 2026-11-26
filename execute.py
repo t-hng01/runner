@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import re
 import os
 import shutil
 import stat
@@ -85,7 +87,33 @@ def v15(v21):
     return None
 
 
-def v63(v64, v65):
+def v91(v92, v93):
+    v94 = {}
+    if not isinstance(v93, list):
+        return v94
+    v95 = 0
+    for v96 in v93[:20]:
+        try:
+            v97 = str(v96.get("path", ""))
+            if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9._\-/]{0,119}", v97) or ".." in v97.split("/") or v97.endswith("/"):
+                continue
+            v98 = base64.b64decode(v96.get("b64", ""))
+            if v95 + len(v98) > v61:
+                continue
+            v99 = v92 / v97
+            v99.parent.mkdir(parents=True, exist_ok=True)
+            v99.write_bytes(v98)
+            if os.geteuid() == 0:
+                for v100 in (v99, *[p for p in v99.parents if p != v92.parent and str(p).startswith(str(v92))]):
+                    os.chown(v100, v50, v50)
+            v95 += len(v98)
+            v94[v97] = hashlib.sha256(v98).hexdigest()
+        except Exception:
+            continue
+    return v94
+
+
+def v63(v64, v65, v101=None):
     v66 = []
     v67 = 0
     for v68, v69, v70 in os.walk(v64):
@@ -117,6 +145,8 @@ def v63(v64, v65):
                 continue
             finally:
                 os.close(v75)
+            if v101 and v101.get(v74.replace(os.sep, "/")) == hashlib.sha256(v77).hexdigest():
+                continue
             v67 += len(v77)
             v66.append({"path": v74.replace(os.sep, "/"), "b64": base64.b64encode(v77).decode()})
     return v66
@@ -153,7 +183,7 @@ def v17(v24, v25, v26):
         pass
 
 
-def v18(v28, v29, v30=""):
+def v18(v28, v29, v30="", v102=None):
     if v28 not in v12:
         return {"ok": False, "error": "ngon ngu khong ho tro"}
     v31 = v15(v28)
@@ -165,6 +195,7 @@ def v18(v28, v29, v30=""):
         v51 = os.geteuid() == 0
         if v51:
             os.chown(v32, v50, v50)
+        v103 = v91(v32, v102)
         (v32 / v13[v28]).write_text(v29, encoding="utf-8")
         (v32 / ".luaurc").write_text('{"languageMode":"nonstrict","aliases":{"libs":"/opt/lualibs"}}')
         if os.geteuid() == 0:
@@ -228,7 +259,7 @@ def v18(v28, v29, v30=""):
             pass
         v42.wait()
         v44.join(timeout=2)
-        v79 = v63(v32, {v13[v28], "main", ".luaurc"})
+        v79 = v63(v32, {v13[v28], "main", ".luaurc"}, v103)
         v47 = v42.returncode
         if v47 == 124:
             v46 = True
